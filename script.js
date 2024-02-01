@@ -221,32 +221,46 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
   //Trend Substracted Periods
+  var diff = 0;
   var substractedPeriods = [];
   for (i = 0; i < stretchedPeriods.length; i++) {
     substractedPeriods.push([]);
     var coordCount = stretchedPeriods[i].length;
     for (l = 0; l < coordCount; l++) {
-      var diff = (stretchedPeriods[i][l].y) - (seperatePeriods[matchingPeriods[i][0]][l].y);
-      substractedPeriods[i].push({ x: [l], y: ((stretchedPeriods[i][l].y) - diff) })
+      diff = (stretchedPeriods[i][l].y) - (seperatePeriods[matchingPeriods[i][0]][l].y);
+      console.log(diff);
+      substractedPeriods[i].push({ x: [l], y: ((stretchedPeriods[i][l].y) + diff) })
     }
   }
   console.log('Substracted Periods:', substractedPeriods);
 
-  //Implement Slope
-  var addedSlope = 0;
-  let totalLength = substractedPeriods.reduce((acc, curr) => acc + curr.length, 0);
-  console.log('Total Length:', totalLength)
-  for (i = 0; i < totalLength; i++) {
-    addedSlope += averageSlope;
-    console.log(addedSlope);
-  }
+  //Implement Slope + Paste Prediction
+  var addedSlope = averageSlope * data.length;
+  var predictedPeriods = [];
+  var predictedData = [...data];
+  var currentCount = 0;
 
-  //Paste Prediction Periods
+  for (i = 0; i < substractedPeriods.length; i++) {
+    predictedPeriods.push([]);
+    for (l = 0; l < substractedPeriods[i].length; l++) {
+      addedSlope += averageSlope;
+      predictedPeriods[i].push({ x: substractedPeriods[i][l].x, y: (substractedPeriods[i][l].y + addedSlope) });
+    }
+
+    //Paste Prediction Periods
+
+    for (m = 0; m < predictedPeriods[i].length; m++) {
+      predictedData.push({ x: (data.length + currentCount), y: predictedPeriods[i][m].y })
+      currentCount++;
+    }
+  }
+  console.log('Predicted Periods:', predictedPeriods);
+
 
 
 
   //Graph
-  let visibleGraph = flatData;
+  let visibleGraph = predictedData;
 
   const width = 600;
   const height = 400;
@@ -287,6 +301,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (index !== -1 && yValues[index] === d.y) {
         return "red";
       }
+
+      if (d.x > data.length) {
+        return "blue";
+      }
+
+
     });
 
   svg
