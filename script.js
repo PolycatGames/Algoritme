@@ -39,14 +39,16 @@ document.addEventListener("DOMContentLoaded", function () {
     { x: 37, y: 0.410 },
   ]
 
-  function findHighestYInPairs(data) {
+  //Highest Magnitudes
+  var halfPeriod = 8;
+  function findHighestMagnitudes(data) {
     const pairs = [];
 
-    for (let i = 0; i < data.length; i += 8) {
+    for (let i = 0; i < data.length; i += halfPeriod) {
       let highestY = -Infinity;
       let highestX = null;
 
-      for (let j = i; j < i + 8 && j < data.length; j++) {
+      for (let j = i; j < i + halfPeriod && j < data.length; j++) {
         const point = data[j];
         if (point.y > highestY) {
           highestY = point.y;
@@ -61,9 +63,13 @@ document.addEventListener("DOMContentLoaded", function () {
     return pairs;
   }
 
-  const highestYInPairs = findHighestYInPairs(data);
+  const highestYInPairs = findHighestMagnitudes(data);
   console.log("Highest Magnitudes:", highestYInPairs);
 
+
+
+
+  //Slope
   function calculateSlope(point1, point2) {
     return (point2.y - point1.y) / (point2.x - point1.x);
   }
@@ -83,6 +89,10 @@ document.addEventListener("DOMContentLoaded", function () {
   let periodTypes = [];
   let periodAmps = [];
 
+
+
+
+  //Period Types
   periodType();
   function periodType() {
 
@@ -125,8 +135,119 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("Period Types:", periodTypes);
   console.log("Period Amplitudes:", periodAmps);
 
+  //Graph No Slope
+  var currentSlope = 0;
+  var flatData = [];
+
+  for (let i = 0; i < data.length; i++) {
+    flatData.push({ x: data[i].x, y: data[i].y - currentSlope });
+    currentSlope += averageSlope;
+  }
+
+  //List Per Period
+  var seperatePeriods = [];
+  for (let i = 0; i < highestYInPairs.length - 1; i++) {
+    seperatePeriods.push([]);
+    for (let l = highestYInPairs[i].x; l < highestYInPairs[i + 1].x; l++) {
+      seperatePeriods[i].push({ x: flatData[l].x, y: flatData[l].y })
+    }
+  }
+  console.log('Seperate Periods:', seperatePeriods);
+
+  //Find Matches
+  function findMatchingPeriods(arr) {
+    const indexMap = new Map();
+    const result = [];
+
+    arr.forEach((item, index) => {
+      if (indexMap.has(item)) {
+        indexMap.get(item).push(index);
+      } else {
+        indexMap.set(item, [index]);
+      }
+    });
+
+    indexMap.forEach((indices) => {
+      if (indices.length > 1) {
+        result.push(indices);
+      }
+    });
+
+    return result;
+  }
+
+  const matchingPeriods = findMatchingPeriods(periodTypes);
+
+  console.log('Matches:', matchingPeriods);
+
+  //Stretch Period
+  var stretchedPeriods = [];
+  for (let i = 0; i < matchingPeriods.length; i++) {
+
+    function stretchCoords(coords, newLength) {
+      if (coords.length < 2) {
+        console.error('Not enough data');
+        return;
+      }
+
+      //Calculate the stretch factor
+      const stretchFactor = (coords.length - 1) / (newLength - 1);
+      let stretchedCoords = [];
+
+      for (let i = 0; i < newLength; i++) {
+        const origIndex = i * stretchFactor;
+
+        const lowerIndex = Math.floor(origIndex);
+        const upperIndex = Math.ceil(origIndex);
+
+        const interpFactor = origIndex - lowerIndex;
+
+        const yValue = coords[lowerIndex].y + interpFactor * (coords[Math.min(upperIndex, coords.length - 1)].y - coords[lowerIndex].y);
+
+        stretchedCoords.push({ x: i + 1, y: yValue });
+      }
+
+      return stretchedCoords;
+    }
+
+    const originalCoords = seperatePeriods[matchingPeriods[i][matchingPeriods[i].length - 1]];
+    const newLength = seperatePeriods[matchingPeriods[i][0]].length;
+
+    const tempStretchedCoords = stretchCoords(originalCoords, newLength);
+    stretchedPeriods.push(tempStretchedCoords);
+  }
+
+  console.log('Stretched Periods:', stretchedPeriods);
+
+
+  //Trend Substracted Periods
+  var substractedPeriods = [];
+  for (i = 0; i < stretchedPeriods.length; i++) {
+    substractedPeriods.push([]);
+    var coordCount = stretchedPeriods[i].length;
+    for (l = 0; l < coordCount; l++) {
+      var diff = (stretchedPeriods[i][l].y) - (seperatePeriods[matchingPeriods[i][0]][l].y);
+      substractedPeriods[i].push({ x: [l], y: ((stretchedPeriods[i][l].y) - diff) })
+    }
+  }
+  console.log('Substracted Periods:', substractedPeriods);
+
+  //Implement Slope
+  var addedSlope = 0;
+  let totalLength = substractedPeriods.reduce((acc, curr) => acc + curr.length, 0);
+  console.log('Total Length:', totalLength)
+  for (i = 0; i < totalLength; i++) {
+    addedSlope += averageSlope;
+    console.log(addedSlope);
+  }
+
+  //Paste Prediction Periods
+
+
 
   //Graph
+  let visibleGraph = flatData;
+
   const width = 600;
   const height = 400;
   const margin = { top: 70, right: 70, bottom: 70, left: 70 };
@@ -134,12 +255,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const xScale = d3
     .scaleLinear()
-    .domain([0, d3.max(data, (d) => d.x)])
+    .domain([0, d3.max(visibleGraph, (d) => d.x)])
     .range([margin.left, width - margin.right]);
 
   const yScale = d3
     .scaleLinear()
-    .domain([d3.max(data, (d) => d.y), d3.min(data, (d) => d.y)])
+    .domain([d3.max(visibleGraph, (d) => d.y), d3.min(visibleGraph, (d) => d.y)])
     .range([height - margin.bottom, margin.top]);
 
   const lineGenerator = d3
@@ -153,7 +274,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const yValues = highestYInPairs.map((point) => point.y);
 
   svg.selectAll("circle")
-    .data(data)
+    .data(visibleGraph)
     .enter()
     .append("circle")
     .attr("class", "data-point")
@@ -170,7 +291,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   svg
     .append("path")
-    .datum(data)
+    .datum(visibleGraph)
     .attr("class", "data-line")
     .attr("d", lineGenerator)
     .attr("fill", "none");
@@ -189,7 +310,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   svg
     .selectAll("circle")
-    .data(data)
+    .data(visibleGraph)
     .enter()
     .append("circle")
     .attr("class", "data-point")

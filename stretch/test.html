@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinate Stretching</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="myCanvas" width="600" height="400"></canvas>
+    <script>
+        function stretchCoords(coords, newLength) {
+            if (coords.length < 2) {
+                console.error('Need at least two coordinates to interpolate.');
+                return;
+            }
+
+            const stretchFactor = (coords.length - 1) / (newLength - 1);
+            let stretchedCoords = [];
+
+            for (let i = 0; i < newLength; i++) {
+                const origIndex = i * stretchFactor;
+                const lowerIndex = Math.floor(origIndex);
+                const upperIndex = Math.ceil(origIndex);
+                const interpFactor = origIndex - lowerIndex;
+                const yValue = coords[lowerIndex].y + interpFactor * (coords[Math.min(upperIndex, coords.length - 1)].y - coords[lowerIndex].y);
+                stretchedCoords.push({ x: i + 1, y: yValue });
+            }
+
+            return stretchedCoords;
+        }
+
+        function drawGraph(coords, ctx, color, offsetX = 0) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            coords.forEach((coord, index) => {
+                const x = coord.x * 40 + offsetX; // Adjust scale and offset for visibility
+                const y = 400 - coord.y * 20; // Scale y and invert for canvas coords
+                if (index === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        const originalCoords = [{ x: 1, y: 2 }, { x: 2, y: 10 }, { x: 3, y: 6 }, { x: 4, y: 5 }, { x: 5, y: 10 }];
+        const newLength = 12;
+        const stretchedCoords = stretchCoords(originalCoords, newLength);
+
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+
+        drawGraph(originalCoords, ctx, 'blue');
+        drawGraph(stretchedCoords, ctx, 'red', 5); // Offset red line for clarity
+    </script>
+</body>
+
+</html>
